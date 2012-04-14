@@ -4,6 +4,7 @@
 #include "Graphics.h"
 #include "Sprite.h"
 #include "Log.h"
+#include "Map.h"
 
 #define WIDTH 640
 #define HEIGHT 480
@@ -11,6 +12,7 @@
 Graphics *graphics = NULL;
 Texture *tilesheet = NULL;
 Sprite *cursorSprite = NULL;
+Map *map = NULL;
 
 struct Button
 {
@@ -27,7 +29,6 @@ int cursorY = 0;
 int tileX = 0;
 int tileY = 0;
 
-int map[WIDTH / 16][HEIGHT / 16];
 
 void draw()
 {
@@ -39,19 +40,8 @@ void draw()
 	glEnable(GL_TEXTURE_2D);
 	glDisable(GL_DEPTH_TEST);
 
-	Sprite *tempSprite = new Sprite(tilesheet, 16, 16);
-
-	for (int y = 0; y < HEIGHT / 16; y++)
-	{
-		for (int x = 0; x < WIDTH / 16; x++)
-		{
-			tempSprite->setPosition(x * 16, y * 16);
-			tempSprite->setFrame(map[x][y]);
-			tempSprite->draw();
-		}
-	}
-
-	delete tempSprite;
+	// draw the map
+	map->draw();
 
 	// draw the cursorSprite
 	glColor4f(1.0f, 1.0f, 1.0f, 0.5f);
@@ -108,14 +98,7 @@ void keys(unsigned char key, int x, int y)
 	{
 		case 27: exit(0); break;
 		case 's': case 'S':
-			FILE *file = fopen("test.map", "wb");
-			if (!file)
-			{
-				Log::error("Couldn't open \"test.map\" for writing!");
-				exit(0);
-			}
-			fwrite(map, 1, sizeof(map), file);
-			fclose(file);
+			map->saveMap("test.map");
 		break;
 	}
 }
@@ -159,7 +142,11 @@ void dmouse(int x, int y)
 		int mx = cursorX / 16;
 		int my = cursorY / 16;
 
-		map[mx][my] = (((tileX+1)*(tileY+1))+(((tilesheet->width/16)-(tileX+1))*tileY)) - 1;
+		Log::info("%i %i", mx, my);
+
+		uint8_t tile = XY2I(tileX, tileY, tilesheet->width);
+		map->setTile(tile, mx, my);
+		map->compileDL();
 	}
 }
 
@@ -210,26 +197,8 @@ bool init()
 	cursorSprite = new Sprite(tilesheet, 16, 16);
 	cursorSprite->setFrame(0);
 
-	// load the map
-	FILE *file = fopen("test.map", "rb");
-	if (file == NULL)
-	{
-		for (int y = 0; y < HEIGHT / 16; y++)
-		{
-			for (int x = 0; x < WIDTH / 16; x++)
-			{
-				map[x][y] = 0;
-			}
-		}
-	}
-	else
-	{
-		fseek(file, 0, SEEK_END);
-  		long size = ftell(file);
-  		rewind(file);
-		fread(map, 1, size, file);;
-	}
-	fclose(file);
+	map = new Map(tilesheet, 20, 15);
+	map->loadMap("test.map");
 
 	return true;
 }
@@ -242,6 +211,8 @@ int main(int argc, char *argv[])
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
 	// set the window size
 	glutInitWindowSize(WIDTH, HEIGHT);
+	// center the window
+	glutInitWindowPosition((glutGet(GLUT_SCREEN_WIDTH)-WIDTH)/2, (glutGet(GLUT_SCREEN_HEIGHT)-HEIGHT)/2);
 	// create window with title
 	glutCreateWindow("Pickin' Sticks");
 

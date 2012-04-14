@@ -8,7 +8,7 @@ class Sprite
 {
 
 public:
-	Sprite(Texture *texture, int width, int height); // construct a sprite with a default texture and frame width and height
+	Sprite(Texture *texture, int width = 16, int height = 16);
 	~Sprite(); // delete the sprite
 
 	void setPosition(int x, int y);

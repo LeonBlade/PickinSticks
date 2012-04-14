@@ -1,6 +1,8 @@
 #ifndef __GRAPHICS_H__
 #define __GRAPHICS_H__
 
+#define XY2I(x,y,w) (((x+1)*(y+1))+(((w/16)-(x+1))*y))-1
+
 #include "OpenGL.h"
 
 #include <vector>

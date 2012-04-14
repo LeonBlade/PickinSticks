@@ -4,7 +4,8 @@ LDFLAGS=-framework OpenGL -framework GLUT -framework libpng
 SOURCES=main.cpp \
 		Log.cpp \
 		Graphics.cpp \
-		Sprite.cpp
+		Sprite.cpp \
+		Map.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=PickinSticks
 
