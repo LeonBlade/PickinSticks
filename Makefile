@@ -3,7 +3,8 @@ CFLAGS=-c -Wall
 LDFLAGS=-framework OpenGL -framework GLUT -framework libpng
 SOURCES=main.cpp \
 		Log.cpp \
-		Graphics.cpp
+		Graphics.cpp \
+		Sprite.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=PickinSticks
 
