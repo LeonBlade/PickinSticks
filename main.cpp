@@ -38,7 +38,7 @@ void draw()
 
 	// enable textures
 	glEnable(GL_TEXTURE_2D);
-	glDisable(GL_DEPTH_TEST);
+	// glDisable(GL_DEPTH_TEST);
 
 	// draw the map
 	map->draw();
@@ -62,7 +62,7 @@ void draw()
 	glEnd();
 	glPopMatrix();
 
-	glEnable(GL_DEPTH_TEST);
+	// glEnable(GL_DEPTH_TEST);
 
 	// swap buffers
 	glutSwapBuffers();
@@ -96,9 +96,25 @@ void keys(unsigned char key, int x, int y)
 {
 	switch(key)
 	{
-		case 27: exit(0); break;
+		case 27: 
+			exit(0); 
+		break;
+		case 'n': case 'N':
+			map = new Map(tilesheet, WIDTH / 16, HEIGHT / 16);
+		break;
+		case 'l': case 'L':
+			map->loadMap("test.map");
+		break;
 		case 's': case 'S':
 			map->saveMap("test.map");
+		break;
+		case 'c': case 'C':
+			map->addCrystal(cursorX / 16, cursorY / 16);
+			map->compileDL();
+		break;
+		case 'd': case 'D':
+			map->removeCrystal(cursorX / 16, cursorY / 16);
+			map->compileDL();
 		break;
 	}
 }
@@ -139,13 +155,8 @@ void dmouse(int x, int y)
 
 	if (buttonState.left)
 	{
-		int mx = cursorX / 16;
-		int my = cursorY / 16;
-
-		Log::info("%i %i", mx, my);
-
 		uint8_t tile = XY2I(tileX, tileY, tilesheet->width);
-		map->setTile(tile, mx, my);
+		map->setTile(tile, cursorX / 16, cursorY / 16);
 		map->compileDL();
 	}
 }
@@ -228,12 +239,15 @@ int main(int argc, char *argv[])
 	glutMotionFunc(dmouse);
 	glutPassiveMotionFunc(umouse);
 
+	// enable things we need
 	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_DEPTH_TEST);
+	// glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
 
+	// enable transparency
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+	// set line width
 	glLineWidth(2.0f);
 
 	// call initialize 

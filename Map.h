@@ -16,14 +16,6 @@ struct MapHeader
 	int height; // the height of the map
 };
 
-struct MapCrystal
-{
-	MapCrystal(int x, int y);
-
-	int x;
-	int y; 
-};
-
 struct MapData
 {
 	MapData(MapHeader *header);
@@ -31,7 +23,7 @@ struct MapData
 
 	uint8_t *tiles;
 	uint8_t crystalCount;
-	MapCrystal *crystals;
+	int16_t *crystals;
 };
 
 class Map
@@ -47,7 +39,7 @@ public:
 	void setTile(char tile, int x, int y);
 	char getTile(int x, int y);
 
-	MapCrystal *addCrystal(int x, int y);
+	void addCrystal(int x, int y);
 	void removeCrystal(int x, int y);
 
 	void draw();
@@ -59,8 +51,6 @@ private:
 	Texture *texture;
 	Sprite *drawSprite;
 	GLuint displayList;
-
-	std::map<int, MapCrystal*> crystalPile; // this will hold pointers to the crystal data in memory
 
 };
 

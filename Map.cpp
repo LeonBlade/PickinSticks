@@ -3,6 +3,8 @@
 #include "Log.h"
 
 #include <stdio.h>
+#include <math.h>
+#include <string.h>
 
 Map::Map(Texture *texture, int width, int height)
 {
@@ -45,9 +47,10 @@ bool Map::loadMap(const char *filename)
 	fread(this->data->tiles, 1, tileSize, file);
 	// read crystal count
 	fread(&this->data->crystalCount, 1, 1, file);
-	// read in the crystal data
-	fread(this->data->crystals, 1, sizeof(MapCrystal) * this->data->crystalCount, file);
-
+	// allocate memory for the crystal data
+	this->data->crystals = new int16_t[this->data->crystalCount];
+	// read the crystal data
+	fread(this->data->crystals, 1, sizeof(int16_t) * this->data->crystalCount, file);
 	// close the file handle
 	fclose(file);
 
@@ -72,27 +75,15 @@ bool Map::saveMap(const char *filename)
 		return false;
 	}
 
-	// get the crystals
-	int crystalCount = this->crystalPile.size();
-	this->data->crystals = (MapCrystal*)malloc(sizeof(MapCrystal) * crystalCount);	
-	std::map<int, MapCrystal*>::iterator it;
-
-	// create a temp holder for crystals
-	MapCrystal *tCrystals[crystalCount];
-
-	// loop through the crystals in the pile and throw them in this array
-	int i = 0;
-	for (it = this->crystalPile.begin(); it != this->crystalPile.end(); it++, i++)
-		tCrystals[i] = (MapCrystal*)it->second;
-
-	// put the array into the crystals
-	this->data->crystals = *tCrystals;
-
+	// save out the header
 	fwrite(this->header, 1, sizeof(MapHeader), file);
+	// save the tiles
 	fwrite(this->data->tiles, 1, this->header->width * this->header->height, file);
+	// save the amount of crystals
 	fwrite(&this->data->crystalCount, 1, 1, file);
-	fwrite(this->data->crystals, 1, sizeof(MapCrystal) * crystalCount, file);
-
+	// save the crystal data
+	fwrite(this->data->crystals, 1, sizeof(uint16_t) * this->data->crystalCount, file);
+	// close the file handle
 	fclose(file);
 
 	// log the successful map save
@@ -130,32 +121,92 @@ void Map::compileDL()
 		}
 	}
 
+	// loop through the crystals
+	for (int i = 0; i < this->data->crystalCount; i++)
+	{
+		// get the index
+		uint16_t index = this->data->crystals[i];
+		// get the X and Y position
+		int x = index % this->header->width;
+		int y = floor(index / this->header->width);
+
+		// select the crystal stand to draw
+		this->drawSprite->setFrame(3, 1);
+		// move to the position of the crystal stand
+		this->drawSprite->setPosition(x * 16, y * 16);
+		// draw the crystal stand
+		this->drawSprite->draw();
+
+		// select the crystal
+		this->drawSprite->setFrame(3, 0);
+		// move to the position of the crystal stand and up some for the crystal
+		this->drawSprite->setPosition(x * 16, (y * 16) - 6);
+		// draw the crystal
+		this->drawSprite->draw();
+	}
+
 	// end the list
 	glEndList();
 }
 
 void Map::setTile(char tile, int x, int y)
 {
+	// set the tile data for this position
 	this->data->tiles[x + (this->header->width * y)] = tile;
 }
 
 char Map::getTile(int x, int y)
 {
+	// get the tile from the current position
 	return this->data->tiles[x + (this->header->width * y)];
 }
 
-MapCrystal *Map::addCrystal(int x, int y)
+void Map::addCrystal(int x, int y)
 {
-	MapCrystal *crystal = new MapCrystal(x, y);
-	this->crystalPile[XY2I(x, y, this->texture->width)] = crystal;
+	// increase the crystal count
 	this->data->crystalCount++;
-	return crystal;
+	// create a temporary crystal array to dynamically increase it
+	int16_t *crystals = new int16_t[this->data->crystalCount];
+	// copy the crystal data over to the new array
+	if (this->data->crystalCount > 1)
+		memcpy(crystals, this->data->crystals, sizeof(int16_t) * (this->data->crystalCount - 1));
+	// add the new crystal to the array
+	crystals[this->data->crystalCount - 1] = (x + (this->header->width * y));
+	// delete the old crystals data
+	delete[] this->data->crystals;
+	// set the new crystal data
+	this->data->crystals = crystals;
 }
 
 void Map::removeCrystal(int x, int y)
 {
+	// decrease the crystal count
 	this->data->crystalCount--;
-	this->crystalPile.erase(this->crystalPile.find(XY2I(x, y, this->texture->width)));
+
+	// create a temporary crystal array to dynamically decrease it
+	int16_t *crystals = new int16_t[this->data->crystalCount];
+
+	// get the index
+	int index = (x + (this->header->width * y));
+
+	// loop through the old array and populate the new one
+	int lx = 0;
+	for (int i = 0; i < this->data->crystalCount + 1; i++)
+		if (this->data->crystals[i] != index)
+			crystals[lx++] = this->data->crystals[i];
+
+	// if no crystal was found in this location then we don't actually want to delete it
+	if (lx == this->data->crystalCount + 1)
+	{
+		delete[] crystals;
+		this->data->crystalCount++;
+		return;
+	}
+	
+	// delete the old data
+	delete[] this->data->crystals;
+	// set the new crystal data
+	this->data->crystals = crystals;
 }
 
 MapHeader::MapHeader(int w, int h)
@@ -168,7 +219,7 @@ MapHeader::MapHeader(int w, int h)
 MapData::MapData(MapHeader *header)
 {
 	this->tiles = (uint8_t*)malloc(header->width * header->height);
-	memset(this->tiles, 1, header->width * header->height);
+	memset(this->tiles, 0, header->width * header->height);
 	this->crystalCount = 0;
 	this->crystals = NULL;
 }
@@ -177,10 +228,4 @@ MapData::~MapData()
 {
 	free(this->tiles);
 	free(this->crystals);
-}
-
-MapCrystal::MapCrystal(int x, int y)
-{
-	this->x = x;
-	this->y = y;
 }
