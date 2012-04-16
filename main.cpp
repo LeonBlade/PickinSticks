@@ -5,6 +5,7 @@
 #include "Sprite.h"
 #include "Log.h"
 #include "Map.h"
+#include "Camera.h"
 
 #define WIDTH 640
 #define HEIGHT 480
@@ -13,6 +14,9 @@ Graphics *graphics = NULL;
 Texture *tilesheet = NULL;
 Sprite *cursorSprite = NULL;
 Map *map = NULL;
+Camera *camera = NULL;
+
+int xPos = 0;
 
 struct Button
 {
@@ -38,15 +42,18 @@ void draw()
 
 	// enable textures
 	glEnable(GL_TEXTURE_2D);
-	// glDisable(GL_DEPTH_TEST);
 
-	// draw the map
-	map->draw();
+	// render the camera
+	camera->draw();
 
 	// draw the cursorSprite
 	glColor4f(1.0f, 1.0f, 1.0f, 0.5f);
 	cursorSprite->draw();
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+
+	// draw the map
+	map->draw();
 
 	// disable textures
 	glDisable(GL_TEXTURE_2D);
@@ -61,8 +68,6 @@ void draw()
 		glVertex2i(16, 16);
 	glEnd();
 	glPopMatrix();
-
-	// glEnable(GL_DEPTH_TEST);
 
 	// swap buffers
 	glutSwapBuffers();
@@ -102,19 +107,38 @@ void keys(unsigned char key, int x, int y)
 		case 'n': case 'N':
 			map = new Map(tilesheet, WIDTH / 16, HEIGHT / 16);
 		break;
-		case 'l': case 'L':
+		case 'o': case 'O':
 			map->loadMap("test.map");
 		break;
-		case 's': case 'S':
+		case 'p': case 'P':
 			map->saveMap("test.map");
 		break;
 		case 'c': case 'C':
 			map->addCrystal(cursorX / 16, cursorY / 16);
 			map->compileDL();
 		break;
-		case 'd': case 'D':
+		case 'r': case 'R':
 			map->removeCrystal(cursorX / 16, cursorY / 16);
 			map->compileDL();
+		break;
+
+		case 'w': case 'W':
+			if (camera->getY() > 0)
+				camera->setPosition(0.0f, -16.0f, true);
+			else
+				camera->setPosition(camera->getX(), 0.0f);
+		break;
+		case 'a': case 'A':
+			if (camera->getX() > 0)
+				camera->setPosition(-16.0f, 0.0f, true);
+			else
+				camera->setPosition(0.0f, camera->getY());
+		break;
+		case 's': case 'S':
+			camera->setPosition(0.0f, 16.0f, true);
+		break;
+		case 'd': case 'D':
+			camera->setPosition(16.0f, 0.0f, true);
 		break;
 	}
 }
@@ -147,8 +171,8 @@ void uskey(int key, int x, int y)
  */
 void dmouse(int x, int y)
 {
-	int mx = (x - (x % 16));
-	int my = (y - (y % 16));
+	int mx = (x - (x % 16)) + camera->getX();
+	int my = (y - (y % 16)) + camera->getY();
 
 	cursorX = mx;
 	cursorY = my;
@@ -166,8 +190,8 @@ void dmouse(int x, int y)
  */
 void umouse(int x, int y)
 {
-	int mx = (x - (x % 16));
-	int my = (y - (y % 16));
+	int mx = (x - (x % 16)) + camera->getX();
+	int my = (y - (y % 16)) + camera->getY();
 
 	cursorX = mx;
 	cursorY = my;
@@ -210,6 +234,10 @@ bool init()
 
 	map = new Map(tilesheet, 20, 15);
 	map->loadMap("test.map");
+
+	camera = new Camera();
+
+	Log::info("Initialization complete!");
 
 	return true;
 }

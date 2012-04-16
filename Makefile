@@ -5,7 +5,8 @@ SOURCES=main.cpp \
 		Log.cpp \
 		Graphics.cpp \
 		Sprite.cpp \
-		Map.cpp
+		Map.cpp \
+		Camera.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=PickinSticks
 
