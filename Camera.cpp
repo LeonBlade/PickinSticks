@@ -13,6 +13,12 @@ Camera::Camera(float x, float y)
 	this->toX = 0.0f;
 	this->toY = 0.0f;
 	this->speed = 0.0f;
+	this->rotation = 0.0f;
+	this->zoom = 1.0f;
+	this->toZoom = 0.0f;
+	this->toRotation = 0.0f;
+	this->zoomSpeed = 0.0f;
+	this->rotateSpeed = 0.0f;
 }
 
 void Camera::setPosition(float x, float y, bool relative)
@@ -54,6 +60,34 @@ float Camera::getY()
 	return this->y;
 }
 
+void Camera::setRotation(float angle, bool relative, float speed)
+{
+	if (speed > 0.0f)
+	{
+		this->toRotation = (relative) ? this->rotation + angle : angle;
+		this->rotateSpeed = speed;
+	}
+	else
+	{
+		this->toRotation = 0.0f;
+		this->rotation = angle;
+	}
+}
+
+void Camera::setZoom(float zoom, bool relative, float speed)
+{
+	if (speed > 0.0f)
+	{
+		this->toZoom = (relative) ? this->zoom + zoom : zoom;
+		this->zoomSpeed = speed;
+	}
+	else
+	{
+		this->toZoom = 0.0f;
+		this->zoom = zoom;
+	}
+}
+
 void Camera::draw()
 {
 	// if toX or toY is not 0 then we will check this
@@ -80,5 +114,43 @@ void Camera::draw()
 		if ((int)this->y == (int)this->toY) this->toY = 0.0f;
 	}
 
+	// if toZoom is not 0 then we increase it
+	if (this->toZoom != 0.0f)
+	{
+		// get the delta change
+		float dZ = this->toZoom - this->zoom;
+
+		// get -1 or 1 for direction
+		int sZ = (dZ == 0) ? 0 : dZ / fabs(dZ);
+
+		// get speed for zoom
+		float speed = sZ * this->zoomSpeed;
+
+		// move the zoom accordingly
+		this->zoom += speed;
+
+		if ((int)this->zoom == (int)this->toZoom) this->toZoom = 0.0f;
+	}
+
+	// if toRotation is not 0 then we increase it
+	if (this->toRotation != 0.0f)
+	{
+		// get the delta change
+		float dR = this->toRotation - this->rotation;
+
+		// get -1 or 1 for direction
+		int sR = (dR == 0) ? 0 : dR / fabs(dR);
+
+		// get speed for zoom
+		float speed = sR * this->rotateSpeed;
+
+		// move the zoom accordingly
+		this->rotation += speed;
+
+		if ((int)this->rotation == (int)this->toRotation) this->toRotation = 0.0f;
+	}
+
+	glRotatef(this->rotation, 0.0f, 0.0f, 1.0f);
+	glScalef(this->zoom, this->zoom, 1.0f);
 	glTranslatef(-this->x, -this->y, 0);
 }

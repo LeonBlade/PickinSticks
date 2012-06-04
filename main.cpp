@@ -9,6 +9,9 @@
 
 #define WIDTH 640
 #define HEIGHT 480
+#define TILE_SIZE 16
+
+#define MCC(i) i - ((i / TILE_SIZE) * TILE_SIZE)
 
 Graphics *graphics = NULL;
 Texture *tilesheet = NULL;
@@ -16,7 +19,13 @@ Sprite *cursorSprite = NULL;
 Map *map = NULL;
 Camera *camera = NULL;
 
+long lastTime = 0;
+long holdTime = 0;
+int frames = 0;
+
 int xPos = 0;
+
+float zoom = 1.0f;
 
 struct Button
 {
@@ -40,8 +49,26 @@ void draw()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 
+	// get time delta
+	long curTime = glutGet(GLUT_ELAPSED_TIME);
+	long deltaTime = curTime - lastTime;
+	holdTime += deltaTime;
+	lastTime = curTime;
+	frames++;
+
+	if (holdTime >= 1000)
+	{
+		Log::info("FPS: %i", frames);
+		frames = 0;
+		holdTime = 0;
+	}
+
 	// enable textures
 	glEnable(GL_TEXTURE_2D);
+
+	// scale in
+	// TODO: make this camera's job
+	glScalef(zoom, zoom, 1.0f);
 
 	// render the camera
 	camera->draw();
@@ -51,7 +78,6 @@ void draw()
 	cursorSprite->draw();
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
-
 	// draw the map
 	map->draw();
 
@@ -60,12 +86,12 @@ void draw()
 
 	// draw the outline
 	glPushMatrix();
-	glTranslated(cursorX, cursorY, 0);
+	glTranslated(cursorX + 0.01f, cursorY + 0.01f, 0);
 	glBegin(GL_LINE_LOOP);
-		glVertex2i(16, 0);
-		glVertex2i(0, 0);
-		glVertex2i(0, 16);
-		glVertex2i(16, 16);
+		glVertex2f(0, 0);
+		glVertex2f(15.5f, 0);
+		glVertex2f(15.5f, 15.5f);
+		glVertex2f(0, 15.5f);
 	glEnd();
 	glPopMatrix();
 
@@ -103,43 +129,54 @@ void keys(unsigned char key, int x, int y)
 	{
 		case 27: 
 			exit(0); 
-		break;
+			break;
 		case 'n': case 'N':
-			map = new Map(tilesheet, WIDTH / 16, HEIGHT / 16);
-		break;
+			map = new Map(tilesheet, WIDTH / TILE_SIZE, HEIGHT / TILE_SIZE);
+			break;
 		case 'o': case 'O':
 			map->loadMap("test.map");
-		break;
+			break;
 		case 'p': case 'P':
 			map->saveMap("test.map");
-		break;
+			break;
 		case 'c': case 'C':
-			map->addCrystal(cursorX / 16, cursorY / 16);
+			map->addCrystal(cursorX / TILE_SIZE, cursorY / TILE_SIZE);
 			map->compileDL();
-		break;
+			break;
 		case 'r': case 'R':
-			map->removeCrystal(cursorX / 16, cursorY / 16);
+			map->removeCrystal(cursorX / TILE_SIZE, cursorY / TILE_SIZE);
 			map->compileDL();
-		break;
+			break;
 
 		case 'w': case 'W':
 			if (camera->getY() > 0)
-				camera->setPosition(0.0f, -16.0f, true);
+				camera->setPosition(0.0f, -TILE_SIZE, true);
 			else
 				camera->setPosition(camera->getX(), 0.0f);
-		break;
+			break;
 		case 'a': case 'A':
 			if (camera->getX() > 0)
-				camera->setPosition(-16.0f, 0.0f, true);
+				camera->setPosition(-TILE_SIZE, 0.0f, true);
 			else
 				camera->setPosition(0.0f, camera->getY());
-		break;
+			break;
 		case 's': case 'S':
-			camera->setPosition(0.0f, 16.0f, true);
-		break;
+			camera->setPosition(0.0f, TILE_SIZE, true);
+			break;
 		case 'd': case 'D':
-			camera->setPosition(16.0f, 0.0f, true);
-		break;
+			camera->setPosition(TILE_SIZE, 0.0f, true);
+			break;
+		case '-':
+			camera->setZoom(-1.0f, true, 0.05f);
+			break;
+		case '+':
+			camera->setZoom(1.0f, true, 0.05f);
+			break;
+		case '/': camera->setRotation(-1.0f, true, 0.05f); break;
+		case '*': camera->setRotation(1.0f, true, 0.05f); break;
+		default:
+			Log::info("Key %c ~ %i", key, key);
+			break;
 	}
 }
 
@@ -150,6 +187,7 @@ void ukey(unsigned char key, int x, int y)
 
 void skey(int key, int x, int y)
 {
+	printf("key %i\n", key);
 	switch (key)
 	{
 		case GLUT_KEY_LEFT: tileX--; break;
@@ -167,20 +205,49 @@ void uskey(int key, int x, int y)
 }
 
 /**
+ * unProject is called when you want to map X and Y based on screen scaling
+ */
+void handleMouse(int x, int y)
+{
+	GLint viewport[4];
+	GLdouble projection[16];
+	GLdouble modelview[16];
+	
+	glGetIntegerv(GL_VIEWPORT, viewport);
+	glGetDoublev(GL_PROJECTION_MATRIX, projection);
+	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
+
+	int xx = x;
+	int yy = viewport[3] - y;
+	GLdouble _x, _y, _z;
+	gluUnProject(xx, yy, 0, modelview, projection, viewport, &_x, &_y, &_z);
+
+	x = (int)_x;
+	y = (int)_y;
+
+	int cx = camera->getX();
+	int cy = camera->getY();
+
+	int mx = (x - (x % TILE_SIZE)) + MCC(cx);
+	int my = (y - (y % TILE_SIZE)) + MCC(cy);
+
+	cursorX = mx;
+	cursorY = my;
+}
+
+/**
  * dmouse is called whenever the mouse is moving and one or more buttons are clicked
  */
 void dmouse(int x, int y)
 {
-	int mx = (x - (x % 16)) + camera->getX();
-	int my = (y - (y % 16)) + camera->getY();
-
-	cursorX = mx;
-	cursorY = my;
+	// handle mouse stuff
+	handleMouse(x, y);	
 
 	if (buttonState.left)
 	{
 		uint8_t tile = XY2I(tileX, tileY, tilesheet->width);
-		map->setTile(tile, cursorX / 16, cursorY / 16);
+		printf("tile %i\n", tile);
+		map->setTile(tile, cursorX, cursorY);
 		map->compileDL();
 	}
 }
@@ -190,13 +257,10 @@ void dmouse(int x, int y)
  */
 void umouse(int x, int y)
 {
-	int mx = (x - (x % 16)) + camera->getX();
-	int my = (y - (y % 16)) + camera->getY();
+	// handle mouse stuff
+	handleMouse(x, y);	
 
-	cursorX = mx;
-	cursorY = my;
-
-	cursorSprite->setPosition(mx, my);
+	cursorSprite->setPosition(cursorX, cursorY);
 }
 
 /**
@@ -276,7 +340,7 @@ int main(int argc, char *argv[])
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	// set line width
-	glLineWidth(2.0f);
+	glLineWidth(1.0f);
 
 	// call initialize 
 	if (!init())

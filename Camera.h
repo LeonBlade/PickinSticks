@@ -11,6 +11,9 @@ public:
 	void setPosition(float x, float y, bool relative = false);
 	void setPan(float speed, float x, float y, bool relative = false);
 
+	void setRotation(float angle, bool relative = false, float speed = 0.0f);
+	void setZoom(float zoom, bool relative = false, float speed = 0.0f);
+
 	float getX();
 	float getY();
 
@@ -20,6 +23,12 @@ private:
 	float x, y;
 	float speed;
 	float toX, toY;
+	float zoom;
+	float toZoom;
+	float zoomSpeed;
+	float rotation;
+	float toRotation;
+	float rotateSpeed;
 
 };
 
